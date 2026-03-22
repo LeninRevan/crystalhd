@@ -376,7 +376,7 @@ static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 	}
 
 	/* register crystalhd class */
-	crystalhd_class = class_create(THIS_MODULE, "crystalhd");
+	crystalhd_class = class_create("crystalhd");
 	if (IS_ERR(crystalhd_class)) {
 		rc = PTR_ERR(crystalhd_class);
 		BCMLOG_ERR("failed to create class\n");
@@ -459,13 +459,15 @@ static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 	BCMLOG(BCMLOG_SSTEP, "bar2:0x%lx-0x%08x  bar0:0x%lx-0x%08x\n",
 	       bar2, mem_len, bar0, i2o_len);
 
-	rc = check_mem_region(bar2, mem_len);
+	// dont work in modern kernel 
+	//rc = check_mem_region(bar2, mem_len);
+	/*rc=0;
 	if (rc) {
 		BCMLOG_ERR("No valid mem region...\n");
 		return -ENOMEM;
-	}
+	}*/
 
-	pinfo->addr = ioremap_nocache(bar2, mem_len);
+	pinfo->addr = ioremap(bar2, mem_len);
 	if (!pinfo->addr) {
 		BCMLOG_ERR("Failed to remap mem region...\n");
 		return -ENOMEM;
@@ -474,13 +476,13 @@ static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 	pinfo->pci_mem_start = bar2;
 	pinfo->pci_mem_len   = mem_len;
 
-	rc = check_mem_region(bar0, i2o_len);
-	if (rc) {
+	//rc = check_mem_region(bar0, i2o_len);
+	/*if (rc) {
 		BCMLOG_ERR("No valid mem region...\n");
 		return -ENOMEM;
-	}
+	}*/
 
-	pinfo->i2o_addr = ioremap_nocache(bar0, i2o_len);
+	pinfo->i2o_addr = ioremap(bar0, i2o_len);
 	if (!pinfo->i2o_addr) {
 		BCMLOG_ERR("Failed to remap mem region...\n");
 		return -ENOMEM;
@@ -489,11 +491,11 @@ static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 	pinfo->pci_i2o_start = bar0;
 	pinfo->pci_i2o_len   = i2o_len;
 
-	rc = pci_request_regions(pinfo->pdev, pinfo->name);
+	/*rc = pci_request_regions(pinfo->pdev, pinfo->name);
 	if (rc < 0) {
 		BCMLOG_ERR("Region request failed: %d\n", rc);
 		return rc;
-	}
+	}*/
 
 	BCMLOG(BCMLOG_SSTEP, "Mapped addr:0x%08lx  i2o_addr:0x%08lx\n",
 	       (unsigned long)pinfo->addr, (unsigned long)pinfo->i2o_addr);
@@ -597,14 +599,12 @@ static int chd_dec_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Set dma mask... */
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		pinfo->dmabits = 64;
-	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	} else if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
 		pinfo->dmabits = 32;
 	} else {
-		BCMLOG_ERR("Unabled to setup DMA %d\n", rc);
+		BCMLOG_ERR("Unabled to setup DMA nask\n");
 		pci_disable_device(pdev);
 		rc = -ENODEV;
 		goto err;
